@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PMT 教養教練 Chatbot</title>
+    <!-- 使用 Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 隱藏滾動條但保持功能 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* 訊息動畫 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message-anim {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        body {
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-[100dvh] flex flex-col items-center justify-center font-sans text-gray-800">
+
+    <!-- App Container -->
+    <div class="w-full max-w-md h-full bg-gray-50 flex flex-col shadow-2xl relative overflow-hidden sm:rounded-xl sm:h-[90vh] sm:border sm:border-gray-200">
+        
+        <!-- Header -->
+        <header class="bg-teal-600 text-white p-4 flex justify-between items-center shadow-md z-10 shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="bg-white/20 p-2 rounded-full">
+                    <!-- Bot Icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">PMT 教養教練</h1>
+                    <p class="text-xs text-teal-100 opacity-90">兒童青少年精神科 衛教專用</p>
+                </div>
+            </div>
+            <button onclick="resetChat()" class="p-2 hover:bg-teal-700 rounded-full transition-colors active:scale-95" title="重新開始">
+                <!-- Refresh Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+            </button>
+        </header>
+
+        <!-- Chat Area -->
+        <div id="chat-container" class="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth">
+            <!-- Messages will be injected here via JS -->
+        </div>
+
+        <!-- Input Area (Hidden by default) -->
+        <div id="input-area" class="hidden p-4 bg-white border-t border-gray-200 shrink-0">
+            <form onsubmit="handleInputSubmit(event)" class="flex gap-2">
+                <input type="text" id="user-input" autocomplete="off" placeholder="請輸入..." class="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 text-base">
+                <button type="submit" class="bg-teal-600 text-white p-3 rounded-xl hover:bg-teal-700 active:bg-teal-800 transition-colors shadow-sm">
+                    <!-- Send Icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                </button>
+            </form>
+        </div>
+
+    </div>
+
+    <!-- Script -->
+    <script>
+        // --- Data & Scenarios ---
+        const SCENARIOS = {
+            start: {
+                text: "家長您好，我是您的教養教練。現在孩子的情況如何？請選擇一個練習模式：",
+                type: 'options',
+                options: [
+                    { label: "😤 孩子現在正在暴怒/跳腳", nextStep: "tantrum_1" },
+                    { label: "📢 練習「有效指令」(叫不動)", nextStep: "eid_intro" },
+                    { label: "🤝 建立關係 (JASPER/黃金時間)", nextStep: "jasper_1" },
+                    { label: "🎮 模擬情境測驗 (Role Play)", nextStep: "quiz_1" },
+                ]
+            },
+
+            // --- Scenario 1: Tantrum ---
+            tantrum_1: {
+                text: "收到。當孩子情緒「核彈爆炸」時，大腦前額葉已關機。現在請深呼吸，不要說教。\n\n請選擇您第一句該說的話：",
+                type: 'options',
+                options: [
+                    { label: "你為什麼要生氣？說出來！", nextStep: "tantrum_wrong_why" },
+                    { label: "不可以這樣！我數到三！", nextStep: "tantrum_wrong_threat" },
+                    { label: "我看見你非常生氣/挫折...", nextStep: "tantrum_correct_label" },
+                ]
+            },
+            tantrum_wrong_why: {
+                text: "❌ 修正：現在問「為什麼」孩子答不出來，只會覺得被質問。\n\n根據情緒調節原則，我們要先「標記情緒」。試試看這句：",
+                type: 'options',
+                options: [{ label: "重試：我看見你非常生氣...", nextStep: "tantrum_correct_label" }]
+            },
+            tantrum_wrong_threat: {
+                text: "❌ 修正：威脅或數數在孩子情緒高點時，只會火上澆油。\n\n我們需要先降溫。試試看這句：",
+                type: 'options',
+                options: [{ label: "重試：我看見你非常生氣...", nextStep: "tantrum_correct_label" }]
+            },
+            tantrum_correct_label: {
+                text: "✅ 正確 (Affect Labeling)。這能安撫杏仁核。\n\n第二步是「設限」。請選擇下一句：",
+                type: 'options',
+                options: [
+                    { label: "但是不可以丟東西/打人。", nextStep: "tantrum_limit_set" },
+                    { label: "你再這樣下次就不帶你來了。", nextStep: "tantrum_wrong_threat_2" },
+                ]
+            },
+            tantrum_wrong_threat_2: {
+                text: "❌ 避免模糊的威脅。請給予具體、當下的行為限制。",
+                type: 'options',
+                options: [{ label: "但是不可以丟東西/打人。", nextStep: "tantrum_limit_set" }]
+            },
+            tantrum_limit_set: {
+                text: "✅ 很好。第三步是「等待與陪伴」。\n\n現在請對孩子說：「我在這裡陪你，等你冷靜我們再說。」然後請保持安靜，做您自己的事，直到哭聲變小。",
+                type: 'options',
+                options: [{ label: "回到主選單", nextStep: "start" }]
+            },
+
+            // --- Scenario 2: EID ---
+            eid_intro: {
+                text: "孩子聽不見您的話，通常是因為指令太長或像問句。\n\n現在請輸入一個您希望孩子去做的單一動作（例如：去洗澡、收玩具）：",
+                type: 'input',
+                inputPlaceholder: "例如：把樂高收回箱子裡",
+                nextStep: "eid_practice"
+            },
+            eid_practice: {
+                text: (input) => `收到。您想讓孩子「${input}」。\n\n請選擇您平常習慣的說法：`,
+                type: 'options',
+                options: [
+                    { label: "能不能去把東西收一收？", nextStep: "eid_wrong_question" },
+                    { label: "快點弄好，不要再拖了！", nextStep: "eid_wrong_vague" },
+                    { label: "看著我。(停頓) 去做...", nextStep: "eid_correct" },
+                ]
+            },
+            eid_wrong_question: {
+                text: "❌ 修正：這是「問句」，孩子大腦會直覺回答「不要」。\n\nPMT原則：請用「祈使句」。請試試看：",
+                type: 'options',
+                options: [{ label: "看著我。把玩具收好。", nextStep: "eid_correct" }]
+            },
+            eid_wrong_vague: {
+                text: "❌ 修正：這帶有情緒且指令不明確。\n\nPMT原則：指令要具體、中性。請試試看：",
+                type: 'options',
+                options: [{ label: "看著我。把玩具收好。", nextStep: "eid_correct" }]
+            },
+            eid_correct: {
+                text: "✅ 完美。這就是 EID (有效指令傳遞)。\n\nSOP：\n1. 走到面前 (距離一手臂)\n2. 眼神接觸\n3. 簡短指令 (不要像演講)\n4. 等待 5 秒",
+                type: 'options',
+                options: [{ label: "再練習一次", nextStep: "eid_intro" }, { label: "回到主選單", nextStep: "start" }]
+            },
+
+            // --- Scenario 3: JASPER ---
+            jasper_1: {
+                text: "改善關係是減少暴怒的基礎。我們練習「旁白法 (Sportscasting)」。\n\n想像孩子正在玩積木，但沒看你。您該說什麼？",
+                type: 'options',
+                options: [
+                    { label: "你要不要疊高一點？像這樣？", nextStep: "jasper_wrong_command" },
+                    { label: "哇，你拿了一個紅色的積木，疊在藍色上面。", nextStep: "jasper_correct" },
+                    { label: "你怎麼都亂疊，要這樣排才對。", nextStep: "jasper_wrong_critique" },
+                ]
+            },
+            jasper_wrong_command: {
+                text: "❌ 這是「指令」或「干涉」。\n\n在特別時間 (Special Time) 裡，請放下主導權。只要描述就好。",
+                type: 'options',
+                options: [{ label: "重試：描述他的動作...", nextStep: "jasper_correct" }]
+            },
+            jasper_wrong_critique: {
+                text: "❌ 這是「批評」。會破壞興致。\n\n請單純像體育主播一樣描述你看見的。",
+                type: 'options',
+                options: [{ label: "重試：描述他的動作...", nextStep: "jasper_correct" }]
+            },
+            jasper_correct: {
+                text: "✅ 太棒了！這就是「共同注意力」。\n\n當孩子覺得你懂他在玩什麼，且不指揮他，安全感就會建立。每天這樣做 5 分鐘即可。",
+                type: 'options',
+                options: [{ label: "回到主選單", nextStep: "start" }]
+            },
+
+            // --- Scenario 4: Quiz ---
+            quiz_1: {
+                text: "【模擬考】孩子正在看電視，該吃飯了。您走過去，他說：「不要！我還要看！」\n\n您的下一步？",
+                type: 'options',
+                options: [
+                    { label: "把電視直接關掉，拉他走。", nextStep: "quiz_wrong_force" },
+                    { label: "說：「我看見你很想看電視，但現在是吃飯時間。」", nextStep: "quiz_correct_validate" },
+                    { label: "說：「你每次都這樣！再不來我就丟掉電視！」", nextStep: "quiz_wrong_nag" },
+                ]
+            },
+            quiz_wrong_force: {
+                text: "❌ 強制關機通常會引發「核彈反應」。我們需要先預告或同理。",
+                type: 'options',
+                options: [{ label: "試試看：同理 + 設限", nextStep: "quiz_correct_validate" }]
+            },
+            quiz_wrong_nag: {
+                text: "❌ 翻舊帳與威脅會讓焦點轉移到情緒對抗，而非吃飯這件事。",
+                type: 'options',
+                options: [{ label: "試試看：同理 + 設限", nextStep: "quiz_correct_validate" }]
+            },
+            quiz_correct_validate: {
+                text: "✅ 正確。先同理 (I see...) 再設限 (But...)。\n\n如果他還是尖叫？",
+                type: 'options',
+                options: [
+                    { label: "開始解釋為什麼吃飯很重要...", nextStep: "quiz_wrong_explain" },
+                    { label: "破唱片法：重複簡短指令「現在去洗手吃飯」，然後等待。", nextStep: "quiz_correct_done" },
+                ]
+            },
+            quiz_wrong_explain: {
+                text: "❌ 孩子情緒激動時聽不進解釋。請保持簡短。",
+                type: 'options',
+                options: [{ label: "使用破唱片法 (Broken Record)", nextStep: "quiz_correct_done" }]
+            },
+            quiz_correct_done: {
+                text: "✅ 恭喜通過測試！您已經掌握了 PMT 的核心技巧：溫和但堅定。",
+                type: 'options',
+                options: [{ label: "回到主選單", nextStep: "start" }]
+            }
+        };
+
+        // --- Logic ---
+        const chatContainer = document.getElementById('chat-container');
+        const inputArea = document.getElementById('input-area');
+        const inputField = document.getElementById('user-input');
+        
+        let currentStep = 'start';
+        let tempInput = ''; // Store user text input for later use
+
+        function init() {
+            addBotMessage('start');
+        }
+
+        function scrollToBottom() {
+            setTimeout(() => {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }, 50);
+        }
+
+        function createMessageElement(sender, text, isCorrect) {
+            const wrapper = document.createElement('div');
+            wrapper.className = `flex w-full message-anim ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+
+            const bubble = document.createElement('div');
+            // Style logic matching the React version
+            const baseClass = "max-w-[85%] rounded-2xl p-4 shadow-sm text-base leading-relaxed break-words whitespace-pre-wrap";
+            const botClass = "bg-white text-gray-800 border border-gray-100 rounded-tl-none";
+            const userClass = "bg-teal-500 text-white rounded-tr-none";
+            
+            bubble.className = `${baseClass} ${sender === 'user' ? userClass : botClass}`;
+            
+            // Bot Label
+            if (sender === 'bot') {
+                const labelHTML = `
+                    <div class="flex items-center gap-2 mb-2 border-b border-gray-100 pb-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-teal-600"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                        <span class="text-xs font-bold text-teal-600">指引</span>
+                    </div>
+                `;
+                bubble.innerHTML = labelHTML + text;
+            } else {
+                bubble.textContent = text;
+                // Feedback Icon for user
+                if (isCorrect !== undefined) {
+                    const iconHTML = isCorrect 
+                        ? `<div class="mt-2 flex justify-end"><svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>`
+                        : `<div class="mt-2 flex justify-end"><svg class="w-4 h-4 text-red-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>`;
+                    bubble.innerHTML += iconHTML;
+                }
+            }
+
+            wrapper.appendChild(bubble);
+            return wrapper;
+        }
+
+        function createOptionsElement(options) {
+            const container = document.createElement('div');
+            container.className = "grid gap-2 mt-4 message-anim pl-4 pr-12"; // Indent slightly to align with bot msg
+
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "text-left w-full px-4 py-3 bg-white text-teal-800 rounded-xl hover:bg-teal-50 transition-colors border border-teal-200 text-sm font-medium flex items-center gap-2 shadow-sm active:bg-teal-100 group";
+                btn.innerHTML = `
+                    <svg class="w-4 h-4 text-teal-400 group-hover:text-teal-600 fill-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    <span>${opt.label}</span>
+                `;
+                btn.onclick = () => handleOptionClick(opt);
+                container.appendChild(btn);
+            });
+            return container;
+        }
+
+        function addBotMessage(stepKey, dynamicInput) {
+            const step = SCENARIOS[stepKey];
+            if (!step) return;
+
+            // Remove old options if any
+            const oldOptions = document.querySelectorAll('.grid.gap-2');
+            oldOptions.forEach(el => el.remove());
+
+            // Determine text
+            let msgText = step.text;
+            if (typeof msgText === 'function') {
+                msgText = msgText(dynamicInput || tempInput);
+            }
+
+            // Add Bot Message Bubble
+            const msgEl = createMessageElement('bot', msgText);
+            chatContainer.appendChild(msgEl);
+            scrollToBottom();
+
+            // Handle UI based on type
+            if (step.type === 'options' && step.options) {
+                // Delay showing options slightly for effect
+                setTimeout(() => {
+                    const optsEl = createOptionsElement(step.options);
+                    chatContainer.appendChild(optsEl);
+                    scrollToBottom();
+                }, 400);
+                inputArea.classList.add('hidden');
+            } else if (step.type === 'input') {
+                inputArea.classList.remove('hidden');
+                inputField.placeholder = step.inputPlaceholder || "請輸入...";
+                inputField.value = '';
+                inputField.focus();
+            } else {
+                inputArea.classList.add('hidden');
+            }
+        }
+
+        function handleOptionClick(option) {
+            // Determine if correct based on nextStep name (simple heuristic)
+            const isCorrect = !option.nextStep.includes('wrong');
+
+            // Add User Message Bubble
+            const userMsgEl = createMessageElement('user', option.label, isCorrect);
+            chatContainer.appendChild(userMsgEl);
+            
+            // Remove options buttons visually (already done by addBotMessage logic clearing old options, but we can hide current ones immediately)
+            const currentOptions = chatContainer.querySelector('.grid.gap-2:last-child');
+            if (currentOptions) currentOptions.style.display = 'none';
+
+            scrollToBottom();
+
+            // Proceed to next step
+            currentStep = option.nextStep;
+            setTimeout(() => {
+                addBotMessage(currentStep, tempInput);
+            }, 600);
+        }
+
+        function handleInputSubmit(e) {
+            e.preventDefault();
+            const val = inputField.value.trim();
+            if (!val) return;
+
+            // Save input
+            tempInput = val;
+
+            // Add User Message
+            const userMsgEl = createMessageElement('user', val);
+            chatContainer.appendChild(userMsgEl);
+            scrollToBottom();
+
+            // Hide input
+            inputArea.classList.add('hidden');
+
+            // Determine next step
+            const currentStepData = SCENARIOS[currentStep];
+            const nextStep = currentStepData.nextStep || 'start';
+            currentStep = nextStep;
+
+            setTimeout(() => {
+                addBotMessage(nextStep, val);
+            }, 600);
+        }
+
+        function resetChat() {
+            chatContainer.innerHTML = '';
+            tempInput = '';
+            currentStep = 'start';
+            init();
+        }
+
+        // Start
+        init();
+
+    </script>
+</body>
+</html>

@@ -79,7 +79,7 @@
                 options: [
                     { label: "😤 孩子現在正在暴怒/跳腳", nextStep: "tantrum_1" },
                     { label: "📢 練習「有效指令」(叫不動)", nextStep: "eid_intro" },
-                    { label: "🤝 建立關係 (JASPER/黃金時間)", nextStep: "jasper_1" },
+                    { label: "🤝 建立關係 (親子黃金時間)", nextStep: "jasper_1" },
                     { label: "🎮 模擬情境測驗 (Role Play)", nextStep: "quiz_1" },
                 ]
             },
@@ -105,7 +105,7 @@
                 options: [{ label: "重試：我看見你非常生氣...", nextStep: "tantrum_correct_label" }]
             },
             tantrum_correct_label: {
-                text: "✅ 正確 (Affect Labeling)。這能安撫杏仁核。\n\n第二步是「設限」。請選擇下一句：",
+                text: "✅ 正確 (標記情緒)。這能安撫杏仁核。\n\n第二步是「設限」。請選擇下一句：",
                 type: 'options',
                 options: [
                     { label: "但是不可以丟東西/打人。", nextStep: "tantrum_limit_set" },
@@ -202,7 +202,7 @@
                 options: [{ label: "試試看：同理 + 設限", nextStep: "quiz_correct_validate" }]
             },
             quiz_correct_validate: {
-                text: "✅ 正確。先同理 (I see...) 再設限 (But...)。\n\n如果他還是尖叫？",
+                text: "✅ 正確。先同理 ( 我看到...) 再設限 (但是...)。\n\n如果他還是尖叫？",
                 type: 'options',
                 options: [
                     { label: "開始解釋為什麼吃飯很重要...", nextStep: "quiz_wrong_explain" },
